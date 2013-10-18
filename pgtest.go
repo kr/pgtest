@@ -16,6 +16,7 @@ so in the future.
 package pgtest
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -42,7 +43,10 @@ unix_socket_directory = '/tmp'
 
 var pgtestdata = filepath.Join(os.TempDir(), "pgtestdata")
 
-var once sync.Once
+var (
+	postgres string
+	once     sync.Once
+)
 
 type PG struct {
 	t   *testing.T
@@ -66,7 +70,7 @@ func Start(t *testing.T) *PG {
 	if err != nil {
 		t.Fatal("copy:", err)
 	}
-	pg.cmd = exec.Command("postgres", "-D", pg.dir)
+	pg.cmd = exec.Command(postgres, "-D", pg.dir)
 	err = pg.cmd.Start()
 	if err != nil {
 		t.Fatal("starting postgres:", err)
@@ -96,14 +100,21 @@ func (pg *PG) Stop() {
 }
 
 func maybeInitdb(t *testing.T) {
-	err := os.Mkdir(pgtestdata, 0777)
+	out, err := exec.Command("pg_config", "--bindir").Output()
+	if err != nil {
+		t.Fatal("pg_config", err)
+	}
+	bindir := string(bytes.TrimSpace(out))
+	postgres = filepath.Join(bindir, "postgres")
+	initdb := filepath.Join(bindir, "initdb")
+	err = os.Mkdir(pgtestdata, 0777)
 	if os.IsExist(err) {
 		return
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = exec.Command("initdb", "-D", pgtestdata).Run()
+	err = exec.Command(initdb, "-D", pgtestdata).Run()
 	if err != nil {
 		t.Fatal("initdb", err)
 	}
