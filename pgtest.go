@@ -121,19 +121,23 @@ func maybeInitdb(t *testing.T) {
 	}
 	err = exec.Command(initdb, "-D", pgtestdata).Run()
 	if err != nil {
+		os.RemoveAll(pgtestdata)
 		t.Fatal("initdb", err)
 	}
 	path := filepath.Join(pgtestdata, "postgresql.conf")
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
+		os.RemoveAll(pgtestdata)
 		t.Fatal(err)
 	}
 	_, err = f.Write([]byte(conf))
 	if err != nil {
+		os.RemoveAll(pgtestdata)
 		t.Fatal(err)
 	}
 	err = f.Close()
 	if err != nil {
+		os.RemoveAll(pgtestdata)
 		t.Fatal(err)
 	}
 	initdbOk = true
