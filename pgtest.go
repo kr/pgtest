@@ -40,7 +40,7 @@ unix_socket_directory = '/tmp'
 `
 )
 
-var dir = filepath.Join(os.TempDir(), "pgtestdata")
+var pgtestdata = filepath.Join(os.TempDir(), "pgtestdata")
 
 var once sync.Once
 
@@ -62,7 +62,7 @@ func Start(t *testing.T) *PG {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = exec.Command("cp", "-a", dir+"/.", pg.dir).Run()
+	err = exec.Command("cp", "-a", pgtestdata+"/.", pg.dir).Run()
 	if err != nil {
 		t.Fatal("copy:", err)
 	}
@@ -96,18 +96,18 @@ func (pg *PG) Stop() {
 }
 
 func maybeInitdb(t *testing.T) {
-	err := os.Mkdir(dir, 0777)
+	err := os.Mkdir(pgtestdata, 0777)
 	if os.IsExist(err) {
 		return
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = exec.Command("initdb", "-D", dir).Run()
+	err = exec.Command("initdb", "-D", pgtestdata).Run()
 	if err != nil {
 		t.Fatal("initdb", err)
 	}
-	path := filepath.Join(dir, "postgresql.conf")
+	path := filepath.Join(pgtestdata, "postgresql.conf")
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		t.Fatal(err)
