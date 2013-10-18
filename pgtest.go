@@ -45,6 +45,7 @@ var pgtestdata = filepath.Join(os.TempDir(), "pgtestdata")
 
 var (
 	postgres string
+	initdbOk = false
 	once     sync.Once
 )
 
@@ -59,6 +60,9 @@ type PG struct {
 // If an error occurs, the test will fail.
 func Start(t *testing.T) *PG {
 	once.Do(func() { maybeInitdb(t) })
+	if !initdbOk {
+		t.Fatal("prior initdb attempt failed")
+	}
 	var err error
 	pg := new(PG)
 	pg.t = t
@@ -109,6 +113,7 @@ func maybeInitdb(t *testing.T) {
 	initdb := filepath.Join(bindir, "initdb")
 	err = os.Mkdir(pgtestdata, 0777)
 	if os.IsExist(err) {
+		initdbOk = true
 		return
 	}
 	if err != nil {
@@ -131,4 +136,5 @@ func maybeInitdb(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	initdbOk = true
 }
