@@ -1,0 +1,50 @@
+PACKAGE DOCUMENTATION
+
+package pgtest
+    import "github.com/kr/pgtest"
+
+    Package pgtest starts and stops a postgres server, quickly and
+    conveniently, for Go unit tests. To use it:
+
+	func TestSomething(t *testing.T) {
+		defer pgtest.Start(t).Stop()
+		db, err := sql.Open("postgres", pgtest.URL)
+		// etc.
+	}
+
+    This package is not very configurable, though it may become so in the
+    future.
+
+
+CONSTANTS
+
+const (
+    // Postgres data directory to copy for new postgres processes.
+    // Dir will be created with initdb if it doesn't already exist.
+    Dir = "pgtestdata"
+
+    // Connection URL for sql.Open, to connect to a database
+    // started by this package.
+    URL = "host=/tmp dbname=postgres sslmode=disable"
+)
+
+
+TYPES
+
+type PG struct {
+    // contains filtered or unexported fields
+}
+
+
+func Start(t *testing.T) *PG
+    Start runs postgres by copying data directory Dir to a temporary
+    location, then running postgres in that temporary directory. If an error
+    occurs, the test will fail.
+
+
+func (pg *PG) Stop()
+    Stop stops the running postgres process and removes its temporary data
+    directory. If an error occurs, the test will fail.
+
+
+
