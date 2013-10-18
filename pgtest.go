@@ -26,10 +26,6 @@ import (
 )
 
 const (
-	// Postgres data directory to copy for new postgres processes.
-	// Dir will be created with initdb if it doesn't already exist.
-	Dir = "pgtestdata"
-
 	// Connection URL for sql.Open, to connect to a database
 	// started by this package.
 	URL = "host=/tmp dbname=postgres sslmode=disable"
@@ -44,6 +40,8 @@ unix_socket_directory = '/tmp'
 `
 )
 
+var dir = filepath.Join(os.TempDir(), "pgtestdata")
+
 var once sync.Once
 
 type PG struct {
@@ -52,8 +50,8 @@ type PG struct {
 	cmd *exec.Cmd
 }
 
-// Start runs postgres by copying data directory Dir to a temporary
-// location, then running postgres in that temporary directory.
+// Start runs postgres in a temporary directory,
+// with a default file set produced by initdb.
 // If an error occurs, the test will fail.
 func Start(t *testing.T) *PG {
 	once.Do(func() { maybeInitdb(t) })
@@ -64,7 +62,7 @@ func Start(t *testing.T) *PG {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = exec.Command("cp", "-a", Dir+"/.", pg.dir).Run()
+	err = exec.Command("cp", "-a", dir+"/.", pg.dir).Run()
 	if err != nil {
 		t.Fatal("copy:", err)
 	}
@@ -98,18 +96,18 @@ func (pg *PG) Stop() {
 }
 
 func maybeInitdb(t *testing.T) {
-	err := os.Mkdir(Dir, 0777)
+	err := os.Mkdir(dir, 0777)
 	if os.IsExist(err) {
 		return
 	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = exec.Command("initdb", "-D", Dir).Run()
+	err = exec.Command("initdb", "-D", dir).Run()
 	if err != nil {
 		t.Fatal("initdb", err)
 	}
-	path := filepath.Join(Dir, "postgresql.conf")
+	path := filepath.Join(dir, "postgresql.conf")
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0666)
 	if err != nil {
 		t.Fatal(err)
