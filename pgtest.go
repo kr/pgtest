@@ -31,7 +31,13 @@ import (
 var conf = template.Must(template.New("t").Parse(`
 fsync = off
 listen_addresses = ''
+
+{{if .Plural}}
+unix_socket_directories = '{{.ConfDir}}'
+{{else}}
 unix_socket_directory = '{{.ConfDir}}'
+{{end}}
+
 `))
 
 var pgtestdata = filepath.Join(os.TempDir(), "pgtestdata1")
@@ -73,7 +79,11 @@ func Start(t *testing.T) *PG {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = conf.Execute(f, struct{ ConfDir string }{pg.dir})
+	plural := !contains("unix_socket_directory", path)
+	err = conf.Execute(f, struct {
+		ConfDir string
+		Plural  bool
+	}{pg.dir, plural})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,4 +144,9 @@ func maybeInitdb(t *testing.T) {
 		t.Fatal("initdb", err)
 	}
 	initdbOk = true
+}
+
+func contains(substr, name string) bool {
+	b, err := ioutil.ReadFile(name)
+	return err == nil && bytes.Contains(b, []byte(substr))
 }
