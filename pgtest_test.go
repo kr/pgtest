@@ -7,9 +7,10 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	defer Start(t).Stop()
+	pg := Start(t)
+	defer pg.Stop()
 
-	db, err := sql.Open("postgres", URL)
+	db, err := sql.Open("postgres", pg.URL)
 	if err != nil {
 		t.Fatal("open", err)
 	}

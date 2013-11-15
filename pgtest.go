@@ -4,8 +4,9 @@ Package pgtest starts and stops a postgres server, quickly
 and conveniently, for Go unit tests. To use it:
 
 	func TestSomething(t *testing.T) {
-		defer pgtest.Start(t).Stop()
-		db, err := sql.Open("postgres", pgtest.URL)
+		pg := pgtest.Start(t)
+		defer pg.Stop()
+		db, err := sql.Open("postgres", pg.URL)
 		// etc.
 	}
 
@@ -23,25 +24,17 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"text/template"
 	"time"
 )
 
-const (
-	// Connection URL for sql.Open, to connect to a database
-	// started by this package.
-	URL = "host=/tmp dbname=postgres sslmode=disable"
-
-	// to poll until postgres fully starts
-	sock = "/tmp/.s.PGSQL.5432"
-
-	conf = `
+var conf = template.Must(template.New("t").Parse(`
 fsync = off
 listen_addresses = ''
-unix_socket_directory = '/tmp'
-`
-)
+unix_socket_directory = '{{.ConfDir}}'
+`))
 
-var pgtestdata = filepath.Join(os.TempDir(), "pgtestdata")
+var pgtestdata = filepath.Join(os.TempDir(), "pgtestdata1")
 
 var (
 	postgres string
@@ -50,6 +43,7 @@ var (
 )
 
 type PG struct {
+	URL string // Connection URL for sql.Open.
 	t   *testing.T
 	dir string
 	cmd *exec.Cmd
@@ -74,11 +68,26 @@ func Start(t *testing.T) *PG {
 	if err != nil {
 		t.Fatal("copy:", err)
 	}
+	path := filepath.Join(pg.dir, "postgresql.conf")
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0666)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = conf.Execute(f, struct{ ConfDir string }{pg.dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = f.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pg.URL = "host=" + pg.dir + " dbname=postgres sslmode=disable"
 	pg.cmd = exec.Command(postgres, "-D", pg.dir)
 	err = pg.cmd.Start()
 	if err != nil {
 		t.Fatal("starting postgres:", err)
 	}
+	sock := filepath.Join(pg.dir, ".s.PGSQL.5432")
 	for n := 0; n < 20; n++ {
 		if _, err := os.Stat(sock); err == nil {
 			return pg
@@ -123,22 +132,6 @@ func maybeInitdb(t *testing.T) {
 	if err != nil {
 		os.RemoveAll(pgtestdata)
 		t.Fatal("initdb", err)
-	}
-	path := filepath.Join(pgtestdata, "postgresql.conf")
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		os.RemoveAll(pgtestdata)
-		t.Fatal(err)
-	}
-	_, err = f.Write([]byte(conf))
-	if err != nil {
-		os.RemoveAll(pgtestdata)
-		t.Fatal(err)
-	}
-	err = f.Close()
-	if err != nil {
-		os.RemoveAll(pgtestdata)
-		t.Fatal(err)
 	}
 	initdbOk = true
 }
